@@ -1,0 +1,41 @@
+name: Nightly Release
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+     - '.github/workflows/build-macos.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions: write-all
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10' # Specify the Python version you need
+
+    - name: Install dependencies
+      run: pip install pyinstaller tk numpy opencv-python segmentation-models tensorflow tensorflow-metal pandas scipy
+
+    - name: Build executable
+      run: cd Code && pyinstaller Malaria_stage_classifier.spec && mv dist/* dist/MLGUI
+      working-directory: ${{ github.workspace }}
+
+    - name: Create info file
+      run: |
+         echo -e "ref: $GITHUB_REF \ncommit: $GITHUB_SHA\nbuild: $(date +"%Y-%m-%dT%H:%M:%SZ")" \
+         > dist/info.txt
+
+    - name: Update nightly release
+      uses: pyTooling/Actions/releaser@r0
+      with:
+        tag: nightly
+        rm: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+        files: dist/*
